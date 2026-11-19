@@ -39,10 +39,13 @@ if want ros; then
         sudo apt install -y software-properties-common curl
         sudo add-apt-repository -y universe
         # Official method: the ros2-apt-source package adds the ROS key + repo
-        ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F '"tag_name"' | awk -F'"' '{print $4}')
-        curl -L -o /tmp/ros2-apt-source.deb \
+        ROS_APT_SOURCE_VERSION=$(curl -fsS https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F '"tag_name"' | awk -F'"' '{print $4}')
+        [[ "$ROS_APT_SOURCE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Could not read ros-apt-source version"; exit 1; }
+        tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT   # private dir, not a predictable /tmp path
+        curl -fL -o "$tmp/ros2-apt-source.deb" \
             "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.${VERSION_CODENAME}_all.deb"
-        sudo dpkg -i /tmp/ros2-apt-source.deb
+        dpkg-deb -I "$tmp/ros2-apt-source.deb" | grep -q "Package: ros2-apt-source" || { echo "Unexpected package"; exit 1; }
+        sudo apt install -y "$tmp/ros2-apt-source.deb"
         sudo apt update
         sudo apt install -y ros-jazzy-desktop
     fi
